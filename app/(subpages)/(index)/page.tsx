@@ -16,12 +16,18 @@ export default async function HomePage() {
     <>
       <AboutMe />
       <Socials />
-      <h2 style={{ padding: 'var(--gap-quarter) 0' }}>My projects</h2>
+      {
+        /*
+         <h2 style={{ padding: 'var(--gap-quarter) 0' }}>My projects</h2>
       <ProjectList
         showYears={false}
         projects={(projects).slice(0, PROJECT_COUNT)}
         seeMore={true}
       />
+
+         */
+      }
+      
       {/* <PostsAndDevNotes PostList={<Suspense>
         <PostListRSC paginate={false} />
       </Suspense>}
