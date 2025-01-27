@@ -1,34 +1,23 @@
-import getNotes from '@lib/get-notes'
-import getPosts from './lib/get-posts'
+import { MetadataRoute } from 'next'
+import { allBlogs } from 'contentlayer/generated'
+import siteMetadata from '@/data/siteMetadata'
 
-export default async function sitemap() {
-  const posts = await getPosts()
-  const notes = await getNotes()
+export const dynamic = 'force-static'
 
-  const blogs = posts
+export default function sitemap(): MetadataRoute.Sitemap {
+  const siteUrl = siteMetadata.siteUrl
+
+  const blogRoutes = allBlogs
+    .filter((post) => !post.draft)
     .map((post) => ({
-      url: `https://maxleiter.com/blog/${post.slug}`,
-      lastModified: post.lastModified
-        ? new Date(post.lastModified).toISOString().split('T')[0]
-        : new Date().toISOString().split('T')[0],
+      url: `${siteUrl}/${post.path}`,
+      lastModified: post.lastmod || post.date,
     }))
-    .concat(
-      notes.map((note) => ({
-        url: `https://maxleiter.com/notes/${note.slug}`,
-        // @ts-expect-error
-        lastModified: note.lastModified
-          ? // @ts-expect-error
-            new Date(note.lastModified).toISOString().split('T')[0]
-          : new Date().toISOString().split('T')[0],
-      })),
-    )
 
-  const routes = ['', '/about', '/projects', '/ie-or-css3', '/talks'].map(
-    (route) => ({
-      url: `https://maxleiter.com${route}`,
-      lastModified: new Date().toISOString().split('T')[0],
-    }),
-  )
+  const routes = ['', 'blog', 'projects', 'tags'].map((route) => ({
+    url: `${siteUrl}/${route}`,
+    lastModified: new Date().toISOString().split('T')[0],
+  }))
 
-  return [...routes, ...blogs]
+  return [...routes, ...blogRoutes]
 }

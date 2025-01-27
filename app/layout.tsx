@@ -1,54 +1,44 @@
-import styles from './layout.module.css'
-import '@styles/global.css'
-import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono';
-import { Analytics } from '@vercel/analytics/react'
-import { ThemeProvider } from 'next-themes'
-import { Viewport } from 'next'
+import 'css/tailwind.css'
+import 'pliny/search/algolia.css'
+import 'remark-github-blockquote-alert/alert.css'
 
-export const dynamic = 'force-static'
+import { Space_Grotesk } from 'next/font/google'
+import { Analytics, AnalyticsConfig } from 'pliny/analytics'
+import { SearchProvider, SearchConfig } from 'pliny/search'
+import Header from '@/components/Header'
+import SectionContainer from '@/components/SectionContainer'
+import Footer from '@/components/Footer'
+import siteMetadata from '@/data/siteMetadata'
+import { ThemeProviders } from './theme-providers'
+import { Metadata } from 'next'
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  return (
-    <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
-      <body>
-        <ThemeProvider>
-          <div className={styles.wrapper}>
-            <main className={styles.main}>{children}</main>
-          </div>
-          <Analytics />
-        </ThemeProvider>
-        {/* {process.env.NODE_ENV === 'development' ? <VercelToolbar /> : null} */}
-      </body>
-    </html>
-  )
-}
+const space_grotesk = Space_Grotesk({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-space-grotesk',
+})
 
-export const metadata = {
-  metadataBase: new URL('https://maxleiter.com'),
+export const metadata: Metadata = {
+  metadataBase: new URL(siteMetadata.siteUrl),
   title: {
-    template: '%s | Max Leiter',
-    default: 'Max Leiter',
+    default: siteMetadata.title,
+    template: `%s | ${siteMetadata.title}`,
   },
-  description: 'A website by Max Leiter.',
+  description: siteMetadata.description,
   openGraph: {
-    title: 'Max Leiter',
-    url: 'https://maxleiter.com',
-    siteName: "Max Leiter's website",
+    title: siteMetadata.title,
+    description: siteMetadata.description,
+    url: './',
+    siteName: siteMetadata.title,
+    images: [siteMetadata.socialBanner],
     locale: 'en_US',
     type: 'website',
-    images: [
-      {
-        url: `https://maxleiter.com/opengraph-image`,
-        width: 1200,
-        height: 630,
-        alt: "Max Leiter's site",
-      },
-    ],
+  },
+  alternates: {
+    canonical: './',
+    types: {
+      'application/rss+xml': `${siteMetadata.siteUrl}/feed.xml`,
+    },
   },
   robots: {
     index: true,
@@ -56,26 +46,66 @@ export const metadata = {
     googleBot: {
       index: true,
       follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
     },
   },
   twitter: {
-    title: 'Max Leiter',
+    title: siteMetadata.title,
     card: 'summary_large_image',
-    creator: '@max_leiter',
-  },
-  icons: {
-    shortcut: 'https://maxleiter.com/favicons/favicon.ico',
-  },
-  alternates: {
-    types: {
-      'application/rss+xml': 'https://maxleiter.com/feed.xml',
-    },
+    images: [siteMetadata.socialBanner],
   },
 }
 
-export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f5f5f5' },
-    { media: '(prefers-color-scheme: dark)', color: '#000' },
-  ],
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const basePath = process.env.BASE_PATH || ''
+
+  return (
+    <html
+      lang={siteMetadata.language}
+      className={`${space_grotesk.variable} scroll-smooth`}
+      suppressHydrationWarning
+    >
+      <link
+        rel="apple-touch-icon"
+        sizes="76x76"
+        href={`${basePath}/static/favicons/apple-touch-icon.png`}
+      />
+      <link
+        rel="icon"
+        type="image/png"
+        sizes="32x32"
+        href={`${basePath}/static/favicons/favicon-32x32.png`}
+      />
+      <link
+        rel="icon"
+        type="image/png"
+        sizes="16x16"
+        href={`${basePath}/static/favicons/favicon-16x16.png`}
+      />
+      <link rel="manifest" href={`${basePath}/static/favicons/site.webmanifest`} />
+      <link
+        rel="mask-icon"
+        href={`${basePath}/static/favicons/safari-pinned-tab.svg`}
+        color="#5bbad5"
+      />
+      <meta name="msapplication-TileColor" content="#000000" />
+      <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fff" />
+      <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000" />
+      <link rel="alternate" type="application/rss+xml" href={`${basePath}/feed.xml`} />
+      <body className="bg-white pl-[calc(100vw-100%)] text-black antialiased dark:bg-gray-950 dark:text-white">
+        <ThemeProviders>
+          <Analytics analyticsConfig={siteMetadata.analytics as AnalyticsConfig} />
+          <SectionContainer>
+            <SearchProvider searchConfig={siteMetadata.search as SearchConfig}>
+              <Header />
+              <main className="mb-auto">{children}</main>
+            </SearchProvider>
+            <Footer />
+          </SectionContainer>
+        </ThemeProviders>
+      </body>
+    </html>
+  )
 }
