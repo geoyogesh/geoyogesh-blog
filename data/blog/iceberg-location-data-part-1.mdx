@@ -1,0 +1,435 @@
+---
+title: 'Iceberg & Location Data: The Future of Geospatial Analytics - Part 1'
+date: '2025-07-20'
+lastmod: '2025-07-20'
+tags: ['iceberg', 'bigdata', 'spatial', 'geospatial', 'analytics']
+draft: false
+summary: 'Apache Iceberg has introduced native support for geometry and geography data types, revolutionizing geospatial analytics on data lakes.'
+images: ['/static/images/twitter-card.png']
+---
+
+## Introduction
+
+Building on iceberg foundational benefits like ACID transactions, schema evolution, and time travel, Apache Iceberg has recently introduced a game-changer for location-based systems: native support for geometry and geography data types. This means you can now store and manage spatial objects—points, lines, polygons, and more—directly within your Iceberg tables. This crucial addition, following the GeoParquet specification and initially introduced in Iceberg v3, unlocks a new era for geospatial analytics on data lakes. It allows for seamless integration of spatial data with the robust features of Iceberg, enabling efficient spatial indexing, improved query pruning, and streamlined workflows for everything from tracking real-time vehicle movements to analyzing complex geographical patterns.
+
+<TOCInline toc={props.toc} exclude="Introduction" />
+
+## Complete Installation: Spark 3.5.6 + Iceberg 1.9.2 on Mac M1
+
+### 1. Prerequisites (Check/Install if not already present)
+
+#### a. Homebrew (Package Manager)
+
+If you don't have Homebrew, open your Terminal and run:
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+Follow the on-screen instructions, including adding Homebrew to your PATH.
+
+#### b. Java Development Kit (JDK) 11
+
+Spark 3.5.x works well with Java 11.
+
+```bash
+brew install openjdk@11
+```
+
+After installation, you need to set `JAVA_HOME` and update your `PATH`. Add these lines to your shell profile file (e.g., `~/.zshrc` for zsh, `~/.bash_profile` for bash):
+
+```bash
+echo 'export JAVA_HOME="/opt/homebrew/opt/openjdk@11"' >> ~/.zshrc
+echo 'export PATH="$JAVA_HOME/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc # Or restart your terminal
+```
+
+To verify:
+```bash
+java -version
+# Expected output similar to: openjdk version "11.0.X" ...
+echo $JAVA_HOME
+# Expected output: /opt/homebrew/opt/openjdk@11
+```
+#### c. Python (for PySpark)
+
+It's recommended to use `pyenv` or `conda` to manage Python versions and environments. Here, we'll use `pyenv`.
+```bash
+brew install pyenv
+```
+Add `pyenv` initialization to your shell profile (`~/.zshrc` or `~/.bash_profile`):
+```bash
+echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc
+echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.zshrc
+echo 'eval "$(pyenv init -)"' >> ~/.zshrc
+source ~/.zshrc # Or restart your terminal
+```
+Install a Python version (e.g., 3.10.13, compatible with Spark):
+```bash
+pyenv install 3.10.13
+pyenv global 3.10.13
+```
+Verify Python:
+```bash
+python --version
+# Expected output similar to: Python 3.10.13
+pip --version
+```
+Install `pyspark` (optional, Spark includes its own, but this helps with IDEs and local scripts):
+```bash
+pip install pyspark
+```
+### 2. Install Apache Spark 3.5.6
+
+#### 1. Download Spark:
+```bash
+cd ~/Downloads # Or any temporary download directory
+curl -o spark-3.5.6-bin-hadoop3-scala2.13.tgz https://dlcdn.apache.org/spark/spark-3.5.6/spark-3.5.6-bin-hadoop3-scala2.13.tgz
+```
+#### 2. Extract and Move:
+```bash
+tar -xzf spark-3.5.6-bin-hadoop3-scala2.13.tgz
+sudo mv spark-3.5.6-bin-hadoop3-scala2.13 /opt/spark-3.5.6
+```
+
+#### 3. Set `SPARK_HOME` and update `PATH`:
+Add these lines to your shell profile (`~/.zshrc` or `~/.bash_profile`):
+```bash
+echo 'export SPARK_HOME="/opt/spark-3.5.6"' >> ~/.zshrc
+echo 'export PATH="$SPARK_HOME/bin:$SPARK_HOME/sbin:$PATH"' >> ~/.zshrc
+source ~/.zshrc # Or restart your terminal
+```
+#### 4. Verify Spark:
+```bash
+spark-shell --version
+# Expected output should show Spark version 3.5.6
+```
+### 3. Install Iceberg 1.9.2 Runtime
+
+#### 1. Download Iceberg JAR:
+```bash
+cd ~/Downloads # Or any temporary download directory
+curl -o iceberg-spark-runtime-3.5_2.13-1.9.2.jar https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_2.13/1.9.2/iceberg-spark-runtime-3.5_2.13-1.9.2.jar
+```
+#### 2. Place JAR in Spark's `jars` directory:
+```bash
+sudo mv iceberg-spark-runtime-3.5_2.13-1.9.2.jar $SPARK_HOME/jars/
+```
+This makes the Iceberg runtime automatically available to Spark applications started with `spark-submit`, `spark-shell`, or `pyspark`.
+
+### 4. Configure Spark with Iceberg
+
+You need to tell Spark to load Iceberg's extensions and to configure an Iceberg catalog. We'll use a local Hadoop-based catalog for simplicity.
+
+#### a. For `spark-shell` (Scala)
+
+Open your terminal and run:
+```bash
+spark-shell \
+    --conf "spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions" \
+    --conf "spark.sql.catalog.local=org.apache.iceberg.spark.SparkCatalog" \
+    --conf "spark.sql.catalog.local.type=hadoop" \
+    --conf "spark.sql.catalog.local.warehouse=/tmp/iceberg_warehouse"
+```
+Explanation:
+- `spark.sql.extensions`: Registers Iceberg's SQL extensions, allowing you to use Iceberg-specific DDL/DML.
+- `spark.sql.catalog.local`: Defines a catalog named `local`.
+- `spark.sql.catalog.local.type=hadoop`: Specifies that this catalog uses the Hadoop catalog type, which stores metadata directly in a file system.
+- `spark.sql.catalog.local.warehouse`: Sets the path where Iceberg will store its table metadata and data files. `/tmp/iceberg_warehouse` is a local directory for testing.
+
+Test in `spark-shell`:
+Once the shell loads, run:
+```scala
+spark.sql("CREATE NAMESPACE IF NOT EXISTS local.db;")
+spark.sql("CREATE TABLE IF NOT EXISTS local.db.my_iceberg_table (id INT, name STRING) USING iceberg;")
+spark.sql("INSERT INTO local.db.my_iceberg_table VALUES (1, 'Alice'), (2, 'Bob');")
+spark.sql("SELECT * FROM local.db.my_iceberg_table").show()
+```
+You should see the inserted data. Type :quit to exit.
+
+#### b. For pyspark (Python)
+
+Open your terminal and run:
+```bash
+pyspark \
+    --conf "spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions" \
+    --conf "spark.sql.catalog.local=org.apache.iceberg.spark.SparkCatalog" \
+    --conf "spark.sql.catalog.local.type=hadoop" \
+    --conf "spark.sql.catalog.local.warehouse=/tmp/iceberg_warehouse"
+```
+Test in `pyspark`:
+Once the shell loads, run:
+```python
+spark.sql("CREATE NAMESPACE IF NOT EXISTS local.db;")
+spark.sql("CREATE TABLE IF NOT EXISTS local.db.my_iceberg_table (id INT, name STRING) USING iceberg;")
+spark.sql("INSERT INTO local.db.my_iceberg_table VALUES (3, 'Charlie'), (4, 'David');")
+spark.sql("SELECT * FROM local.db.my_iceberg_table").show()
+```
+You should see the inserted data. Type `exit()` to quit.
+
+#### c. For Standalone Spark Applications (Python Example)
+
+Create a file named `iceberg_app.py`:
+```python
+from pyspark.sql import SparkSession
+
+# Define the local Iceberg warehouse path
+warehouse_path = "/tmp/iceberg_warehouse"
+
+spark = SparkSession.builder \
+    .appName("IcebergSparkM1App") \
+    .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
+    .config("spark.sql.catalog.local", "org.apache.iceberg.spark.SparkCatalog") \
+    .config("spark.sql.catalog.local.type", "hadoop") \
+    .config("spark.sql.catalog.local.warehouse", warehouse_path) \
+    .getOrCreate()
+
+print("Spark session created successfully with Iceberg catalog.")
+
+try:
+    # Create a database/namespace if it doesn't exist
+    spark.sql("CREATE NAMESPACE IF NOT EXISTS local.db;")
+    print("Namespace 'local.db' created or already exists.")
+
+    # Create an Iceberg table
+    spark.sql("CREATE TABLE IF NOT EXISTS local.db.my_iceberg_table (id INT, name STRING) USING iceberg;")
+    print("Table 'local.db.my_iceberg_table' created or already exists.")
+
+    # Insert data
+    spark.sql("INSERT INTO local.db.my_iceberg_table VALUES (5, 'Eve'), (6, 'Frank');")
+    print("Data inserted into the table.")
+
+    # Query data
+    print("Data from my_iceberg_table:")
+    spark.sql("SELECT * FROM local.db.my_iceberg_table").show()
+
+except Exception as e:
+    print(f"An error occurred: {e}")
+finally:
+    spark.stop()
+    print("Spark session stopped.")
+```
+Run the application using `spark-submit`:
+```bash
+spark-submit iceberg_app.py
+```
+You should see the Spark logs, followed by the output of the `show()` command.
+
+### 5. Features to Test & How to Approach Them
+
+Now that you have Spark and Iceberg installed, let's look at the features you plan to test.
+
+#### a. Geometry Type
+
+Iceberg v3 introduces native support for `GEOMETRY` and `GEOGRAPHY` types. For Iceberg 1.9.2, you'll need to explicitly create tables with `format-version=3`.
+
+- Requirement: You'll need an external geospatial library for Spark (like Apache Sedona or Esri GIS Tools for Spark) to actually create and manipulate geometry objects using SQL functions (`ST_GeomFromText`, `ST_Intersects`, etc.). Spark itself doesn't have these functions built-in.
+- Steps:
+
+1) Add Geospatial Library JAR (e.g., Apache Sedona): 
+Download the appropriate Sedona JAR for Spark 3.5 and Scala 2.13. For example, search for `sedona-spark-3.5_2.13`. Place it in `$SPARK_HOME/jars/` or specify it with `--packages` in `spark-submit`/`pyspark`.
+Example using `--packages`:
+```bash
+pyspark --packages org.apache.sedona:sedona-spark-3.5_2.13:1.5.1,org.apache.sedona:sedona-sql-3.5_2.13:1.5.1,org.locationtech.jts:jts-core:1.19.0 \
+        --conf "spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,org.apache.sedona.spark.SedonaSparkExtensions" \
+        --conf "spark.sql.catalog.local=org.apache.iceberg.spark.SparkCatalog" \
+        --conf "spark.sql.catalog.local.type=hadoop" \
+        --conf "spark.sql.catalog.local.warehouse=/tmp/iceberg_warehouse"
+```
+(Adjust Sedona version `1.5.1` as per latest compatible with Spark 3.5).
+
+2) Create Iceberg Table with Geometry Column:
+
+```sql
+CREATE TABLE local.db.geospatial_data (
+    id INT,
+    event_location GEOMETRY
+) USING iceberg
+TBLPROPERTIES('format-version'='3'); -- Crucial for geometry type
+```
+
+3) Insert and Query Data (using Sedona SQL functions):
+
+```sql
+-- Make sure Sedona extensions are loaded (see --conf above)
+INSERT INTO local.db.geospatial_data VALUES
+(1, ST_GeomFromText('POINT (10 20)')),
+(2, ST_GeomFromText('LINESTRING (30 10, 10 30, 40 40)')),
+(3, ST_GeomFromText('POLYGON ((0 0, 0 10, 10 10, 10 0, 0 0))'));
+
+SELECT id, ST_AsText(event_location) FROM local.db.geospatial_data;
+
+-- Example spatial query (requires Sedona)
+SELECT id FROM local.db.geospatial_data WHERE ST_Contains(event_location, ST_GeomFromText('POINT (5 5)'));
+```
+#### b. Creating Custom Transformers and Readers
+
+This involves writing Scala/Java code, compiling it into a JAR, and then using that JAR in your Spark application. PySpark can then call these Scala/Java functions via Py4j.
+
+##### General Workflow:
+
+1) Set up a Scala/Java Project: Use SBT (Scala Build Tool) or Maven to create a new project.
+
+Maven Example (pom.xml snippet):
+```xml
+<dependencies>
+    <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-core_2.13</artifactId>
+        <version>3.5.6</version>
+        <scope>provided</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-sql_2.13</artifactId>
+        <version>3.5.6</version>
+        <scope>provided</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.iceberg</groupId>
+        <artifactId>iceberg-spark-runtime-3.5_2.13</artifactId>
+        <version>1.9.2</version>
+        <scope>provided</scope>
+    </dependency>
+    </dependencies>
+```
+2) Write Scala/Java Code:
+
+- Custom Transformer (Scala Example - Extending `Transformer`):
+    This allows you to create reusable ML-style transformations.
+
+```scala
+// src/main/scala/com/example/MyCustomTransformer.scala
+package com.example
+
+import org.apache.spark.ml.{Transformer, PipelineModel}
+import org.apache.spark.ml.param.{Param, ParamMap, Params}
+import org.apache.spark.ml.util.{DefaultParamsReadable, DefaultParamsWritable}
+import org.apache.spark.sql.{DataFrame, Dataset}
+import org.apache.spark.sql.types.{StructType, StringType, DoubleType}
+import org.apache.spark.sql.functions.udf
+
+class MyCustomTransformer(override val uid: String) extends Transformer with DefaultParamsWritable {
+
+  def this() = this(org.apache.spark.ml.util.Identifiable.randomUID("MyCustomTransformer"))
+
+  val inputCol: Param[String] = new Param[String](this, "inputCol", "Input column name for transformation.")
+  val outputCol: Param[String] = new Param[String](this, "outputCol", "Output column name for transformation.")
+  val prefix: Param[String] = new Param[String](this, "prefix", "Prefix to add to the string.")
+
+  def setInputCol(value: String): this.type = set(inputCol, value)
+  def setOutputCol(value: String): this.type = set(outputCol, value)
+  def setPrefix(value: String): this.type = set(prefix, value)
+
+  override def transform(dataset: Dataset[_]): DataFrame = {
+    val inputC = $(inputCol)
+    val outputC = $(outputCol)
+    val p = $(prefix)
+
+    val addPrefixUDF = udf((s: String) => s"$p$s")
+    dataset.withColumn(outputC, addPrefixUDF(dataset(inputC)))
+  }
+
+  override def copy(extra: ParamMap): MyCustomTransformer = defaultCopy(extra)
+
+  override def transformSchema(schema: StructType): StructType = {
+    require(schema.fieldNames.contains($(inputCol)), s"Input column ${$(inputCol)} does not exist.")
+    require(schema($(inputCol)).dataType == StringType, s"Input column ${$(inputCol)} must be of StringType.")
+    schema.add($(outputCol), StringType, nullable = true) // Add new column to schema
+  }
+}
+
+object MyCustomTransformer extends DefaultParamsReadable[MyCustomTransformer] {
+  override def load(path: String): MyCustomTransformer = super.load(path)
+}
+```
+- Custom Reader (Scala Example - Implementing Spark Data Source V2):
+This is more complex. You'd implement `TableProvider` and related interfaces. This is for reading entirely new data formats.
+(This is a conceptual outline, a full implementation is extensive)
+
+```scala
+    // src/main/scala/com/example/MyCustomDataSource.scala
+    package com.example
+
+    import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
+    import org.apache.spark.sql.connector.expressions.Transform
+    import org.apache.spark.sql.sources.DataSourceRegister
+    import org.apache.spark.sql.types.StructType
+    import org.apache.spark.sql.util.CaseInsensitiveStringMap
+
+    import java.util.Collections
+    import scala.collection.JavaConverters._
+
+    // This is a minimal skeleton. A real implementation needs MyCustomTable, MyCustomScanBuilder, etc.
+    class MyCustomDataSource extends TableProvider with DataSourceRegister {
+      override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
+        // Logic to infer schema from your custom data source
+        new StructType().add("col1", StringType).add("col2", IntegerType)
+      }
+
+      override def getTable(
+          schema: StructType,
+          partitioning: Array[Transform],
+          properties: java.util.Map[String, String]): Table = {
+        // Return your custom Table implementation
+        new MyCustomTable(schema, partitioning, properties.asScala.toMap)
+      }
+
+      override def supports              s: StructType, partitioning: Array[Transform], properties: Map[String, String]) = ??? // Implement supports method
+      override def shortName(): String = "mycustomformat"
+    }
+```
+3) Compile to JAR:
+- Navigate to your project's root directory in the terminal.
+- If using Maven: `mvn clean package`
+- If using SBT: `sbt clean package`
+This will create a JAR file (e.g., `my-custom-spark-code-1.0.jar`) in your `target` or `build` directory.
+
+4) Place Custom JAR in Spark:
+
+```bash
+sudo mv /path/to/your/custom-code.jar $SPARK_HOME/jars/
+```
+(Or specify it directly with `--jars` when submitting your application.)
+
+5) Use in PySpark/Scala/Java:
+
+- PySpark using Custom Transformer:
+
+```python
+# In your Python script
+from pyspark.sql import SparkSession
+from pyspark.ml.wrapper import JavaWrapper
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
+
+# Start Spark session (assuming custom JAR is in SPARK_HOME/jars)
+spark = SparkSession.builder \
+    .appName("CustomTransformerApp") \
+    .getOrCreate()
+
+# Create a test DataFrame
+data = [("hello", 1), ("world", 2)]
+schema = StructType([
+    StructField("text", StringType(), True),
+    StructField("id", IntegerType(), True)
+])
+df = spark.createDataFrame(data, schema)
+df.show()
+
+# Instantiate your custom Scala/Java transformer
+# The class name must match the fully qualified name of your Scala/Java class
+# Accessing Java/Scala classes directly via spark._jvm
+java_transformer = spark._jvm.com.example.MyCustomTransformer()
+transformer = JavaWrapper(java_transformer)
+
+# Set parameters (use the Java setter methods directly if needed, or PySpark's param system)
+transformer.setInputCol("text")
+transformer.setOutputCol("prefixed_text")
+transformer.setPrefix("MY_PREFIX_")
+
+# Transform the DataFrame
+transformed_df = transformer.transform(df)
+transformed_df.show()
+
+spark.stop()
+```
+- Scala/Java using Custom Code:
+You would instantiate your classes directly in your Scala/Java Spark application code and then compile and run it with `spark-submit`.
