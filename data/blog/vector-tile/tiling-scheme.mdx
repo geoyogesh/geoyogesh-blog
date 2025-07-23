@@ -1,0 +1,89 @@
+---
+title: 'Mapping it Out: Decoding XYZ vs. TMS Tiling Schemes'
+date: '2021-04-15'
+lastmod: '2021-04-15'
+tags: ['vector-tile', 'quad-tiles', 'open-standards']
+draft: false
+summary: 'XYZ is the web''s de-facto tiling standard, placing its origin at the top-left with a downward Y-axis. TMS, a formal specification, uses a bottom-left origin with an upward Y-axis. Understanding this Y-axis difference is key to working with various map tile sources.'
+images: ['/static/images/twitter-card.png']
+---
+
+## Introduction
+
+In the world of web mapping, those snappy, fast-loading maps you see are often built upon a foundation of map tiles. These are essentially small, pre-rendered (or vector-based) images that your browser stitches together to create the larger map view. Two key schemes govern how these tiles are organized and requested: the popular XYZ and the more formally defined TMS (Tile Map Service). While they achieve the same goal – serving map data efficiently – their underlying philosophies and key differences can impact how you work with them.
+
+So, let's dive into the nitty-gritty and decode the XYZ and TMS tiling schemes.
+
+<TOCInline toc={props.toc} exclude="Introduction" />
+
+---
+
+### The Unofficial Champion: XYZ (Slippy Map Tilenames)
+
+Think of XYZ as the internet's "street smart" tiling convention. It wasn't born out of a formal specification but rather evolved from the way popular online map providers like Google Maps, OpenStreetMap, and Mapbox started serving their tiles. Its simplicity and widespread adoption have made it the de-facto standard in many web mapping applications.
+
+**Key Characteristics of XYZ:**
+
+* **Origin at the Top-Left:** The coordinate system for XYZ tiles places its origin (0,0) at the **top-left** corner of the entire map at zoom level 0.
+* **X Increases Right, Y Increases Down:** As you move east across the map, the X-coordinate increases. As you move south, the Y-coordinate increases. This intuitive top-down, left-right progression aligns well with how many computer graphics systems work.
+* **URL Structure:** XYZ tiles are typically accessed through a straightforward URL structure:
+    `/z/x/y.format`
+    where:
+    * `z` represents the **zoom level** (higher numbers mean more detail and more tiles).
+    * `x` represents the **column** of the tile.
+    * `y` represents the **row** of the tile.
+    * `format` specifies the tile format (e.g., png, jpg, pbf for vector tiles).
+* **Simplicity and Ease of Use:** Its lack of formal specification can be seen as both a strength and a weakness. It's incredibly easy to understand and implement, making it a favorite among developers.
+* **Ubiquitous Adoption:** Due to its use by major players, most web mapping libraries and tools have built-in support for XYZ tile sources.
+
+### The Formal Specification: TMS (Tile Map Service)
+
+TMS, on the other hand, is a formal specification defined by the Open Source Geospatial Foundation (OSGeo). It provides a more standardized way of describing and accessing tile-based map data.
+
+**Key Characteristics of TMS:**
+
+* **Formal Specification:** TMS adheres to a well-defined standard, outlining how tile services should be structured and accessed. This promotes interoperability.
+* **Origin at the Bottom-Left:** The most significant difference from XYZ is the **origin**. TMS places its origin (0,0) at the **bottom-left** corner of the map at zoom level 0.
+* **X Increases Right, Y Increases Up:** Similar to XYZ, the X-coordinate increases to the right. However, the **Y-coordinate increases upwards** as you move north. This "flipped Y-axis" is the primary distinguishing factor.
+* **Metadata Capabilities:** TMS specifications often include provisions for metadata, allowing for better discovery and understanding of the tile service.
+* **More Flexible Coordinate Systems:** While often used with Web Mercator (like XYZ for web maps), the TMS specification is more flexible and can potentially support other Coordinate Reference Systems (CRSs) and tile grid definitions.
+* **URL Structure:** While variations exist, a common TMS URL structure might look like:
+    `/service/tms/1.0.0/layername/{z}/{x}/{y}.format`
+    The structure can be more verbose due to the formal nature of the specification.
+
+### The Crucial Difference: The Y-Axis Flip
+
+The most important distinction between XYZ and TMS is the **direction of the Y-axis**. In XYZ, Y increases downwards; in TMS, Y increases upwards.
+
+**Why does this matter?**
+
+This difference becomes critical when you're working with tile coordinates directly or when integrating tile sources from different providers. If you try to use XYZ coordinates with a TMS service (or vice versa) without accounting for this flip, your map tiles will appear in the wrong location or not load at all.
+
+Imagine a tile at zoom level 2, column 3, row 2.
+
+* **XYZ:** This refers to a tile that is 3 steps to the right and 2 steps down from the top-left origin.
+* **TMS:** This refers to a tile that is 3 steps to the right and 2 steps *up* from the bottom-left origin.
+
+For a given zoom level, the Y-coordinate in XYZ can be converted to the corresponding TMS Y-coordinate (and vice versa) using a simple formula:
+
+`TMS_y = (2^zoom - 1) - XYZ_y`
+
+Where `2^zoom` is the total number of rows at that zoom level.
+
+### Which One Should You Use?
+
+In most modern web mapping scenarios, **you'll encounter and likely work with XYZ tiling much more frequently.** Its widespread adoption and simplicity make it the standard for many popular tile providers and mapping libraries.
+
+However, understanding the TMS specification is still valuable, especially if you're working with:
+
+* **Older or less common tile services** that might adhere to the TMS standard.
+* **Formal geospatial data infrastructure** where specifications like TMS are preferred for interoperability.
+* **Developing your own tile server** and need to decide on a standard.
+
+**Vector Tiles and the Tiling Scheme:**
+
+It's important to note that both XYZ and TMS can be used to serve **vector tiles** (e.g., in Mapbox Vector Tile format). The tiling scheme primarily defines how the tiles are organized and requested, not the format of the data within the tiles themselves. You'll often see vector tile services using an XYZ-like URL structure.
+
+### Conclusion
+
+While both XYZ and TMS provide a way to structure and serve map tiles, their difference in Y-axis orientation is the key factor to be aware of. The simplicity and widespread adoption of XYZ have made it the dominant convention in web mapping today. However, understanding the formal TMS specification can be crucial when dealing with diverse tile sources or more formal geospatial systems. Ultimately, knowing the tiling scheme of your map source is essential for ensuring your maps render correctly and your geospatial applications function as expected. So, next time you zoom in on a web map, remember the underlying grid of tiles and the schemes that bring them to your screen!
