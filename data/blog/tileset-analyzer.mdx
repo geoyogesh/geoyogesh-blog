@@ -36,6 +36,8 @@ The primary goal of Tileset Analyzer is to assist cartographers and GIS professi
 
 ### **High-Level Components**
 
+![hld](/static/images/blog/tileset-analyzer/architecture.png)
+
 Tileset Analyzer is built with flexibility in mind. Here's an overview of its key components:
 
 #### 1. **Python CLI Tool**
@@ -65,6 +67,8 @@ For users who prefer a visual interface, Tileset Analyzer is complemented by a S
    - Tileset scheme (TMS vs. XYZ)
    - Total size and compression type (gzip or uncompressed)
 
+![hld](/static/images/blog/tileset-analyzer/tileset_info.png)
+
 #### 2. **Explore Layers and Attributes**
    - List all zoom levels in the tileset.
    - View layers at each zoom level.
@@ -73,15 +77,21 @@ For users who prefer a visual interface, Tileset Analyzer is complemented by a S
      - Data types (string vs. number).
      - Value ranges for numeric data.
      - Distinct values (up to 100) for string attributes.
+![hld](/static/images/blog/tileset-analyzer/tileset_zoom_level.png)
 
 #### 3. **Display Tiles on Mapview**
    - Visualize tiles using a template style.
    - Inspect tile properties and attributes in real-time.
+![hld](/static/images/blog/tileset-analyzer/map_view.png)
 
 #### 4. **Tileset Metrics**
    - **Tile Count**: View the total number of tiles per zoom level.
    - **Tile Size**: Analyze metrics like minimum, maximum, average, and percentiles (50th, 85th, etc.) to identify performance bottlenecks.
    - **Layer Size**: Aggregate tile layer sizes per zoom level and calculate contribution percentages.
+![hld](/static/images/blog/tileset-analyzer/tileset_metrics.png)
+![hld](/static/images/blog/tileset-analyzer/tile_size_average.png)
+![hld](/static/images/blog/tileset-analyzer/tile_size_by_zoom.png)
+![hld](/static/images/blog/tileset-analyzer/tile_size_tree_map.png)
 
 ---
 
