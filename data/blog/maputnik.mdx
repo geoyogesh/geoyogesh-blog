@@ -1,0 +1,109 @@
+---
+title: 'Maputnik: Visually Edit Your MapLibre Styles'
+date: '2021-03-04'
+lastmod: '2021-03-04'
+tags: ['vector-tile', 'basemap']
+draft: false
+summary: 'Maputnik is a visual editor for MapLibre styles, simplifying the process of creating and editing map styles without dealing with complex JSON.'
+images: ['/static/images/twitter-card.png']
+---
+
+## Introduction
+
+Mapping is an incredibly powerful way to visualize data, and at the heart of every great map lies its style. Colors, fonts, line widths, and layer visibility all contribute to how we interpret the information presented. If you've ever worked with vector map data, you know that defining these styles often involves diving into a JSON file, typically following the MapLibre Style Specification. While powerful, editing JSON directly can be a bit daunting.
+
+Enter Maputnik!
+
+Maputnik is a fantastic visual editor for the MapLibre Style Specification. It provides a user-friendly graphical interface that takes the complexity out of manipulating those JSON style files, making map styling intuitive and accessible to everyone.
+
+<TOCInline toc={props.toc} exclude="Introduction" />
+
+## How to Use Maputnik
+
+Maputnik offers flexibility in how you use it, whether you prefer to run it locally on your machine or access it through an online editor.
+
+### Running Maputnik Locally
+
+For those who want to integrate Maputnik into their local development workflow, you can download and run it directly.
+
+First, download the latest release for your operating system (e.g., `maputnik-darwin.zip` for macOS) from the [Maputnik editor releases page](https://github.com/maplibre/maputnik/releases).
+
+Once downloaded, follow these steps:
+
+```bash
+unzip maputnik-darwin.zip
+cd maputnik
+
+sudo chmod 755 ./maputnik
+./maputnik
+```
+This will launch Maputnik, typically accessible in your web browser at http://localhost:8000.
+
+You can also specify a style file to open and even enable a watch mode for live updates:
+```bash
+./maputnik --watch --file map-styles/basemap_light.json
+# Example URL with specific coordinates: http://localhost:8000/#20.36/35.2549337/138.9021323
+
+./maputnik --file map-styles/basemap_light.json
+```
+
+If you need to run Maputnik on a different port, you can do so easily:
+
+```bash
+./maputnik --port 9000 --file map-styles/basemap_light.json
+# Example URL on port 9000: http://localhost:9000/#18/34.635311/135.599984
+```
+### Maputnik Online Editor
+
+If you prefer to jump right in without any local setup, Maputnik also offers a convenient online editor:
+
+    https://maplibre.org/maputnik/
+
+## Extending Maputnik
+
+One of the great things about Maputnik is that it's open-source, allowing you to extend its functionality or customize it to your specific needs. This is particularly useful if you have a unique workflow or want to add integrations.
+
+Here's how you can get started with extending Maputnik:
+
+First, clone the repository and navigate into the directory:
+
+```bash
+git clone https://github.com/maputnik/editor.git
+cd editor
+```
+Next, set up the development environment. Maputnik uses Node.js, and it's recommended to use a version manager like asdf to ensure compatibility:
+```bash
+asdf install nodejs 16.19.1
+asdf local nodejs 16.19.1
+
+npm install
+npm run start
+```
+This will start the development server, usually accessible at http://localhost:8000.
+
+Now, you can make modifications to the source code. For example, let's say you want to add a custom button to the export modal. You could edit the src/components/ModalExport.jsx file.
+
+Before:
+```html
+<p>
+    Download a JSON style to your computer
+</p>
+```
+After:
+```html
+<p>
+    Download a JSON style to your computer
+</p>
+<div>Save to tilegen tools</div>
+```
+After saving your changes, the development server will typically recompile, and you'll see your modifications reflected in the browser.
+
+## Conclusion
+Maputnik truly simplifies the process of creating and refining your MapLibre styles. Whether you're a seasoned map designer or just starting, its intuitive interface will streamline your workflow and help you create stunning maps.
+With both local and online options available, you can choose the setup that best fits your needs. Plus, with its open-source nature, you have the freedom to extend and customize it to suit your specific requirements.
+If you haven't tried Maputnik yet, give it a go! It's a game-changer for anyone working with vector tile styles.
+
+## References
+- GitHub Repository: https://github.com/maputnik/editor
+- Maputnik CLI Wiki: https://github.com/maputnik/editor/wiki/Maputnik-CLI
+
