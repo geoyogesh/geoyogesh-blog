@@ -1,0 +1,126 @@
+---
+title: 'Tileset Analyzer: A Comprehensive Guide to Optimizing Your Map Tiles'
+date: '2021-04-05'
+lastmod: '2021-04-05'
+tags: ['vector-tile', 'cartography']
+draft: false
+summary: 'Tileset Analyzer a powerful Python CLI tool designed to streamline the analysis and optimization of tilesets.'
+images: ['/static/images/twitter-card.png']
+---
+
+## Introduction
+
+In today's digital age, cartography and map creation have become increasingly complex. The proliferation of geospatial data and the need for efficient rendering has led to the development of various tileset formats—MBTiles, PMTiles, COMTiles, and others. However, managing and analyzing these tilesets can be challenging, often requiring deep dives into layer structures, attributes, and performance metrics.
+
+Enter **Tileset Analyzer**, a powerful Python CLI tool designed to streamline the analysis and optimization of tilesets. This blog post will guide you through the key features of Tileset Analyzer, its architecture, and how it can transform your map rendering workflow.
+
+<TOCInline toc={props.toc} exclude="Introduction" />
+
+---
+
+### **Summary**
+
+Tileset Analyzer is a tool that helps users analyze their tilesets, identify bottlenecks, and make data-driven decisions to optimize their maps. By providing insights into tile metrics at both layer and zoom level, the tool empowers cartographers to create more efficient and performant maps.
+
+---
+
+### **Goal**
+
+The primary goal of Tileset Analyzer is to assist cartographers and GIS professionals in optimizing their tilesets before deployment. Key objectives include:
+
+- **Reducing average and maximum tile sizes**: Smaller tiles often lead to faster rendering and better performance, especially on mobile devices.
+- **Comparing tilesets**: Understanding how current and previous versions of a tileset differ can help ensure major updates are well thought-out.
+- **Assisting stylesheet design**: By inspecting layer attributes, cartographers can make informed decisions about visual styling.
+
+---
+
+### **High-Level Components**
+
+Tileset Analyzer is built with flexibility in mind. Here's an overview of its key components:
+
+#### 1. **Python CLI Tool**
+   - Reads and analyzes entire tilesets.
+   - Generates detailed results that can be exported to a JSON file for further review.
+
+#### 2. **Pluggable Architecture**
+   - Supports multiple tileset formats, including:
+     - **MBTiles**: A popular format used in open-source GIS projects.
+     - **Folder Tiles**: A flexible format where tiles are stored in a folder structure.
+     - **PMTiles**: A performance-optimized format for web-based maps.
+     - **COMTiles**: A compressed format designed for efficient storage and transfer.
+
+#### 3. **Libraries Used**
+   - The tool leverages powerful libraries like `pandas` for data manipulation, `protobuf` for parsing tileset data, and `parse` for handling complex data formats.
+
+---
+
+### **Tileset Analyzer UI**
+
+For users who prefer a visual interface, Tileset Analyzer is complemented by a Single Page Application (SPA) built with React.js. The UI offers several features:
+
+#### 1. **Review Tileset General Information**
+   - Name
+   - Location on local disk
+   - Type of tileset (MBTiles, Folder Tiles, PMTiles, COMTiles)
+   - Tileset scheme (TMS vs. XYZ)
+   - Total size and compression type (gzip or uncompressed)
+
+#### 2. **Explore Layers and Attributes**
+   - List all zoom levels in the tileset.
+   - View layers at each zoom level.
+   - Inspect attributes for each layer, including:
+     - Geometry types (e.g., Point, LineString).
+     - Data types (string vs. number).
+     - Value ranges for numeric data.
+     - Distinct values (up to 100) for string attributes.
+
+#### 3. **Display Tiles on Mapview**
+   - Visualize tiles using a template style.
+   - Inspect tile properties and attributes in real-time.
+
+#### 4. **Tileset Metrics**
+   - **Tile Count**: View the total number of tiles per zoom level.
+   - **Tile Size**: Analyze metrics like minimum, maximum, average, and percentiles (50th, 85th, etc.) to identify performance bottlenecks.
+   - **Layer Size**: Aggregate tile layer sizes per zoom level and calculate contribution percentages.
+
+---
+
+### **User Guide**
+
+#### 1. **Running Locally**
+   ```bash
+   SOURCE=./dbTilePack.mbtiles
+   TEMP_FOLDER=./output
+   tileset_analyzer --source $SOURCE --temp_folder $TEMP_FOLDER --actions process,serve --scheme XYZ --compressed False --mbtiles_tbl tiles,x,y,z,data
+   ```
+   This command processes the tileset, serves it locally, and generates metrics for analysis.
+
+#### 2. **Analyzing Offline Tilepacks**
+   Tileset Analyzer can be adapted to handle offline datasets. For example, it can download parts of a Tilegen-generated dataset based on a bounding box and analyze them locally.
+
+---
+
+### **Next Steps**
+
+#### **Short-Term Goals**
+- Develop a user guide tailored for internal use cases.
+- Implement the ability to compare two or more tilesets at once.
+- Enhance support for analyzing large-scale datasets offline.
+
+#### **Long-Term Goals**
+- Expand the tool's capacity to handle entire tileset analyses.
+- Integrate AI-driven insights to automate optimization processes.
+
+---
+
+### **Reference**
+
+For more information about Tileset Analyzer and its implementation, check out the project on [GitHub](https://github.com/geoyogesh/tileset_analyzer).
+
+---
+
+### **Conclusion**
+
+Tileset Analyzer is a game-changing tool for cartographers and GIS professionals. By providing deep insights into tileset structures and metrics, it empowers users to create more efficient and performant maps. Whether you're working with MBTiles, PMTiles, or other formats, Tileset Analyzer offers the tools you need to optimize your workflow.
+
+Start analyzing your tilesets today and take the first step toward creating better maps!
