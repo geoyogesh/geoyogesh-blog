@@ -1,0 +1,90 @@
+---
+title: 'Slimming Down Your Tiles: General Tips for Efficient Vector Tile Sizes'
+date: '2021-04-15'
+lastmod: '2021-04-15'
+tags: ['vector-tile', 'cartography', 'deep-dive']
+draft: false
+summary: 'To reduce vector tile size, simplify geometries, optimize feature properties by removing or encoding them, filter out unnecessary features at lower zoom levels, reduce coordinate precision, and always apply gzip compression.'
+images: ['/static/images/twitter-card.png']
+---
+
+## Introduction
+
+Vector tiles are a powerful way to deliver geospatial data efficiently, allowing for dynamic styling and fast rendering. However, bloated tile sizes can lead to slower load times and increased bandwidth consumption, impacting user experience and infrastructure costs. The good news is that there are several general strategies you can employ to trim down your tile sizes without sacrificing critical detail.
+
+<TOCInline toc={props.toc} exclude="Introduction" />
+
+---
+
+Here are some key techniques to consider for optimizing your vector tiles:
+
+
+### 1. Simplify Geometries Judiciously
+
+Geometry simplification is perhaps the most impactful technique for reducing tile size. It involves reducing the number of vertices that define a line or polygon.
+
+* **Algorithms and Tolerance:** Common simplification algorithms include the **Douglas-Peucker algorithm** (also known as the Ramer-Douglas-Peucker algorithm) and **Visvalingam-Whyatt**.
+    * **Douglas-Peucker:** This algorithm works by iteratively removing points that are within a specified `epsilon` (or `tolerance`) distance from the line segment connecting the start and end points of a sub-segment. The `epsilon` value represents the maximum allowable perpendicular distance between the original line segment and the simplified line. A larger `epsilon` leads to more aggressive simplification and fewer vertices.
+        * **Impact on Size:** If a line originally has $N$ vertices, and simplification reduces it to $N'$ vertices, the data size for that geometry is roughly proportional to $N \times (\text{coordinate size})$. Reducing $N$ to $N'$ directly translates to a size reduction of $(N - N') \times (\text{coordinate size})$.
+    * **Visvalingam-Whyatt:** This algorithm prioritizes points based on the "area of the triangle" formed by a point and its two neighbors. Points forming smaller triangles (less "significant" in terms of shape) are removed first. This often produces more visually pleasing results for area features as it tends to preserve corners better.
+* **Zoom-Level Dependent Simplification (Generalization):** This is a crucial strategy for creating multi-resolution datasets.
+    * At **lower zoom levels** (e.g., Z0-Z6), where a large geographical area is covered by a single tile, features appear very small. Here, aggressive simplification with a *large tolerance* (e.g., $100m - 1km$ in ground units) is appropriate. A complex coastline might become a smooth curve, and small islands might disappear entirely.
+    * At **intermediate zoom levels** (e.g., Z7-Z12), a moderate tolerance (e.g., $10m - 50m$) is used.
+    * At **higher zoom levels** (e.g., Z13-Z22), where individual features are large on the screen, a very small tolerance (e.g., $0.1m - 1m$) or even no simplification is applied to retain fine detail.
+    * This approach ensures that each tile only contains the necessary level of detail for its respective zoom, preventing unnecessary data transfer.
+
+### 2. Optimize Feature Properties
+
+Attribute data associated with geometries (properties) can contribute significantly to tile size, sometimes even more than the geometry itself, especially for features with many attributes.
+
+* **Remove Unnecessary Properties:** This is a straightforward data cleansing step. For example, if your source data contains `last_edited_user_id`, `creation_timestamp`, or internal `object_id` fields that are not used for styling or interaction in your map, they should be removed. Each property is a key-value pair, and both the key string and value data consume space.
+* **Shorten Property Names:** Every character in a property key (e.g., `population_density_2020` vs. `pop_den`) adds to the tile size, especially when it's repeated for thousands or millions of features.
+    * **Example:** If you have 100,000 features, and you shorten a property name by 10 characters, that's $100,000 \times 10 = 1,000,000$ characters saved, or roughly $1MB$ if each character is 1 byte.
+* **Encode Categorical Data:** For properties with a limited set of discrete values (e.g., `land_use`: "residential", "commercial", "industrial"), storing the full string for each feature is inefficient.
+    * **Mapping:** Create a mapping like:
+        * "residential" $\rightarrow$ 1
+        * "commercial" $\rightarrow$ 2
+        * "industrial" $\rightarrow$ 3
+    * Store the integer (1, 2, or 3) in the tile instead of the string. An integer typically takes 1-4 bytes, whereas a string like "residential" takes 11 bytes. This can be a substantial saving.
+* **Quantize Numeric Properties:** If you have numeric values that don't require high precision for display or analysis on the client side (e.g., `temperature`, `area_sq_m`, `elevation`), you can reduce the number of decimal places.
+    * **Example:** An elevation of `123.45678` meters might be perfectly fine as `123.46` or even `123`.
+    * **Impact:** Storing `123.45678` might require a floating-point number (e.g., 8 bytes for a `double`). Storing `123` might require a smaller integer (e.g., 2 bytes). This is especially effective if your data has many such properties.
+
+### 3. Filter Features Strategically
+
+Not every feature needs to be present at every zoom level. This is closely related to zoom-level dependent simplification but focuses on the presence or absence of an entire feature.
+
+* **Minimum Zoom Level for Features (Feature Culling):** Define a minimum zoom level at which a particular type of feature should appear.
+    * **Example:** Individual building footprints (`building_polygon`) might only be visible from Z14 upwards. Before that, they might be represented by aggregated urban area polygons.
+    * **Implementation:** During the tile generation process, for any given tile at zoom level $Z$, only include features whose `min_zoom` property (or determined threshold) is less than or equal to $Z$. This means tiles at lower zoom levels will contain fewer features overall.
+* **Aggregate or Generalize Features:** At lower zoom levels, instead of showing every individual small feature, you can combine them into a simpler representation.
+    * **Example:** A cluster of small parks might become a single larger "green space" polygon at Z8.
+    * **Clustering:** For point data, clustering algorithms can be used to group nearby points into a single, summarized point feature at lower zoom levels, with a property indicating the count of original points in the cluster.
+
+### 4. Precision Control for Coordinates
+
+The number of decimal places used to store geographic coordinates directly impacts the number of bytes required per coordinate pair. Vector tile specifications (like Mapbox Vector Tile) typically use integer coordinates within a tile's grid space after projection (e.g., Web Mercator). However, the precision of the *source* coordinates before tiling matters.
+
+* **Coordinate Quantization (Source Data):** Before tiling, if your source coordinates have excessive precision (e.g., 8-9 decimal places for latitude/longitude, implying millimeter or micrometre accuracy on the ground), you can round them to a more reasonable level.
+    * **Rule of Thumb:**
+        * 1 decimal place $\approx$ 11.1 km
+        * 2 decimal places $\approx$ 1.11 km
+        * 3 decimal places $\approx$ 111 m
+        * 4 decimal places $\approx$ 11.1 m
+        * 5 decimal places $\approx$ 1.11 m (good for general mapping, a person's location)
+        * 6 decimal places $\approx$ 0.111 m (good for engineering, precise surveying)
+    * For most web mapping applications, 5 or 6 decimal places for latitude/longitude is sufficient.
+* **Vector Tile Coordinate Encoding:** Within a vector tile, coordinates are typically encoded as integers relative to the tile's top-left corner (pixel space). The standard MVT (Mapbox Vector Tile) specification uses a `grid_size` (often 4096). This means coordinates are scaled to fit within a $4096 \times 4096$ grid for that tile.
+    * The `move_to` and `line_to` commands encode differences in x and y coordinates. Smaller coordinate values (due to less precision in the source or aggressive simplification) mean smaller integer differences, which can sometimes lead to more efficient variable-length encoding (e.g., zigzag encoding with varints) if the tile format uses it.
+    * **Impact:** While the `grid_size` normalizes coordinates within the tile, reducing initial source precision still helps by removing noise and ensuring that after projection and rounding to the tile grid, there aren't unnecessary variations that could lead to more complex `line_to` commands if the source data was overly precise.
+
+### 5. Consider Tile Grid Structure and Compression
+
+While not directly about the content *within* the tile, the tile grid itself and the final compression applied are important.
+
+* **Efficient Tiling Schemes:** Using standard tiling schemes like Web Mercator (EPSG:3857) with a standard zoom level progression (power of 2 increments) ensures compatibility with most mapping libraries and tools. This also allows for efficient caching and pre-rendering strategies.
+* **Compression:** Vector tiles are typically gzipped or deflated before being served. This is a final, critical step in reducing bandwidth.
+    * **Gzip/Deflate:** These algorithms are very effective at compressing the repetitive nature of geometric commands and attribute data within a tile. The smaller the uncompressed tile (due to the above optimizations), the more effective the compression will be. You can often see 70-90% reduction in size after gzip.
+    * **Pre-compression:** If serving from a static file server or CDN, ensure that tiles are pre-compressed and served with the `Content-Encoding: gzip` header. This offloads compression from the server at request time.
+
+By thoughtfully applying these general tips, especially by making data-driven decisions about precision, simplification, and filtering, you can significantly reduce the size of your vector tiles. Remember that optimization is often an iterative process; experiment with different settings, analyze the resulting tile sizes (e.g., using tile-inspecting tools), and monitor network performance to find the sweet spot for your specific data and use case.
